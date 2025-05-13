@@ -92,3 +92,31 @@ docker-compose up -d
     "registry-mirrors": ["https://docker.1ms.run", "https://registry.docker-cn.com", "https://docker.mirrors.ustc.edu.cn", "http://hub-mirror.c.163.com"]
 }
 ```
+
+## .env
+```shell
+DEBUG=True
+SECRET_KEY=your_secret_key_here
+# Database settings
+DB_ENGINE=django.contrib.gis.db.backends.postgis
+DB_NAME=mygisdb
+DB_USER=mygisdb
+DB_PASSWORD=mygisdb
+DB_HOST=db
+DB_PORT=5432
+# Allowed hosts
+ALLOWED_HOSTS=*
+```
+
+## git
+```shell
+git init
+git add .
+git commit -m "Initial commit"
+git push -u origin main
+```
+
+## 注意事项
+- 确保Docker和Docker-Compose已正确安装
+- 确保数据库服务已启动
+- 确保数据库配置正确
