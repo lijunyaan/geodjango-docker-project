@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}项目地图 - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+    #map-container {
+        height: 600px;
+        width: 100%;
+    }
+    .project-popup h5 {
+        margin-top: 0;
+        margin-bottom: 5px;
+    }
+    .project-popup p {
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-8">
+        <h1>项目地图</h1>
+        <p class="text-muted">查看所有项目的地理位置分布</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <a href="{% url 'projects:project_list' %}" class="btn btn-outline-secondary">
+            返回列表
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div id="map-container"></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        项目状态图例
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-2 mb-2">
+                <span class="badge bg-info">规划中</span>
+            </div>
+            <div class="col-md-2 mb-2">
+                <span class="badge bg-primary">进行中</span>
+            </div>
+            <div class="col-md-2 mb-2">
+                <span class="badge bg-success">已完成</span>
+            </div>
+            <div class="col-md-2 mb-2">
+                <span class="badge bg-warning">已暂停</span>
+            </div>
+            <div class="col-md-2 mb-2">
+                <span class="badge bg-danger">已取消</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // 初始化地图
+        const map = L.map('map-container').setView([35.0, 105.0], 4); // 中国中心位置
+        
+        // 添加底图
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+        
+        // 获取项目GeoJSON数据
+        fetch('{% url "projects:project_geojson" %}')
+            .then(response => response.json())
+            .then(data => {
+                // 解析JSON字符串为对象（如果需要）
+                const geojsonData = typeof data === 'string' ? JSON.parse(data) : data;
+                
+                // 添加GeoJSON数据到地图
+                L.geoJSON(geojsonData, {
+                    pointToLayer: function(feature, latlng) {
+                        // 根据项目状态设置不同颜色的标记
+                        let markerColor = '#3388ff'; // 默认蓝色
+                        
+                        switch(feature.properties.status) {
+                            case 'planning':
+                                markerColor = '#17a2b8'; // 信息色
+                                break;
+                            case 'in_progress':
+                                markerColor = '#007bff'; // 主要色
+                                break;
+                            case 'completed':
+                                markerColor = '#28a745'; // 成功色
+                                break;
+                            case 'suspended':
+                                markerColor = '#ffc107'; // 警告色
+                                break;
+                            case 'cancelled':
+                                markerColor = '#dc3545'; // 危险色
+                                break;
+                        }
+                        
+                        // 创建自定义标记
+                        return L.circleMarker(latlng, {
+                            radius: 8,
+                            fillColor: markerColor,
+                            color: '#fff',
+                            weight: 1,
+                            opacity: 1,
+                            fillOpacity: 0.8
+                        });
+                    },
+                    onEachFeature: function(feature, layer) {
+                        // 获取状态的中文名称
+                        let statusText = '';
+                        switch(feature.properties.status) {
+                            case 'planning':
+                                statusText = '规划中';
+                                break;
+                            case 'in_progress':
+                                statusText = '进行中';
+                                break;
+                            case 'completed':
+                                statusText = '已完成';
+                                break;
+                            case 'suspended':
+                                statusText = '已暂停';
+                                break;
+                            case 'cancelled':
+                                statusText = '已取消';
+                                break;
+                        }
+                        
+                        // 创建弹出窗口内容
+                        const popupContent = `
+                            <div class="project-popup">
+                                <h5>${feature.properties.name}</h5>
+                                <p><strong>编号:</strong> ${feature.properties.code}</p>
+                                <p><strong>状态:</strong> ${statusText}</p>
+                                <p><a href="/projects/${feature.properties.pk}/" class="btn btn-sm btn-primary">查看详情</a></p>
+                            </div>
+                        `;
+                        
+                        // 绑定弹出窗口
+                        layer.bindPopup(popupContent);
+                    }
+                }).addTo(map);
+                
+                // 如果有数据，调整地图视图以适应所有点
+                if (geojsonData.features && geojsonData.features.length > 0) {
+                    const bounds = L.geoJSON(geojsonData).getBounds();
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            })
+            .catch(error => {
+                console.error('获取项目数据失败:', error);
+                alert('获取项目数据失败，请刷新页面重试。');
+            });
+    });
+</script>
+{% endblock %}
